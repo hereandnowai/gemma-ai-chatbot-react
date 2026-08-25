@@ -4,6 +4,7 @@ import {
   loadBranding,
   applyBrandColors,
   applyFavicon,
+  applyMetaDescription,
   FALLBACK_BRAND,
 } from "./lib/branding";
 import Header from "./components/Header";
@@ -31,7 +32,12 @@ export default function App() {
       setBrand(b);
       applyBrandColors(b.colors);
       applyFavicon(b.logo?.favicon);
-      if (b.organizationName) document.title = `${b.organizationName} — Chatbot`;
+      if (b.organizationName) {
+        document.title = `${b.organizationName} — Chatbot`;
+        applyMetaDescription(
+          [b.organizationName, b.slogan].filter(Boolean).join(" — ")
+        );
+      }
     });
     return () => {
       cancelled = true;

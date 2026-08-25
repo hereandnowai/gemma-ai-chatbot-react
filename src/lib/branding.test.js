@@ -4,7 +4,9 @@ import {
   toSocialLinks,
   applyBrandColors,
   applyFavicon,
+  applyMetaDescription,
   FALLBACK_BRAND,
+  safeUrl,
 } from "./branding";
 
 const ok = (body) => ({ ok: true, json: async () => body });
@@ -129,5 +131,39 @@ describe("fallback diagnostics", () => {
     await loadBranding(vi.fn().mockResolvedValue({ ok: false, status: 404 }));
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
+  });
+});
+
+describe("applyMetaDescription", () => {
+  it("sets the description so no brand string is hardcoded in index.html", () => {
+    const doc = document.implementation.createHTMLDocument();
+    applyMetaDescription("HERE AND NOW AI — AI is Good", doc);
+    expect(doc.querySelector("meta[name='description']").content).toBe(
+      "HERE AND NOW AI — AI is Good"
+    );
+  });
+
+  it("leaves the existing description alone when branding supplies none", () => {
+    const doc = document.implementation.createHTMLDocument();
+    const tag = doc.createElement("meta");
+    tag.name = "description";
+    tag.content = "original";
+    doc.head.appendChild(tag);
+    applyMetaDescription("", doc);
+    expect(doc.querySelector("meta[name='description']").content).toBe("original");
+  });
+});
+
+describe("safeUrl scheme allowlist", () => {
+  it.each([
+    ["https://hereandnowai.com", "https://hereandnowai.com"],
+    ["http://example.com", "http://example.com"],
+    ["javascript:alert(1)", ""],
+    ["data:text/html,<script>alert(1)</script>", ""],
+    // Rejected for web links: callers render these with target="_blank".
+    ["mailto:info@hereandnowai.com", ""],
+    ["tel:+919962961000", ""],
+  ])("%s -> %s", (input, expected) => {
+    expect(safeUrl(input)).toBe(expected);
   });
 });

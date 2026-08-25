@@ -23,7 +23,11 @@ export const FALLBACK_BRAND = {
 // Only these schemes may reach an href. React blocks javascript: URLs itself,
 // but relying on framework internals for security is the wrong dependency —
 // and a blocked URL still renders as a broken link.
-const SAFE_SCHEMES = ["http:", "https:", "mailto:"];
+//
+// Web links only: callers render these as external sites with target="_blank",
+// so mailto: and tel: would be mis-rendered. Those are built from the dedicated
+// email and mobile fields instead.
+const SAFE_SCHEMES = ["http:", "https:"];
 
 /** Returns the URL if its scheme is safe to put in an href, else "". */
 export function safeUrl(url) {
@@ -56,6 +60,18 @@ export function toSocialLinks(socialMedia = {}) {
 export function applyBrandColors(colors = {}, root = document.documentElement) {
   if (colors.primary) root.style.setProperty("--brand-primary", colors.primary);
   if (colors.secondary) root.style.setProperty("--brand-secondary", colors.secondary);
+}
+
+/** Sets the meta description from branding, so no brand string is hardcoded. */
+export function applyMetaDescription(text, doc = document) {
+  if (!text) return;
+  let tag = doc.querySelector("meta[name='description']");
+  if (!tag) {
+    tag = doc.createElement("meta");
+    tag.name = "description";
+    doc.head.appendChild(tag);
+  }
+  tag.content = text;
 }
 
 /** Swaps the favicon to the brand one, if branding.json supplies a URL. */
