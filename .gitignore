@@ -31,3 +31,6 @@ social-media-content/
 .env.local
 .env.*.local
 .DS_Store
+
+# Local hook execution log
+.github/hooks/hook-runs.log

@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# Fail the commit if any check fails — without set -e, a lint-staged failure
+# would be ignored whenever the tests that follow happen to pass.
+set -e
+
+# Lint only what is staged, then run the full unit suite.
+# Bypass in an emergency with: git commit --no-verify
+npx lint-staged
+npm test

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "disableAllHooks": false,
+  "hooks": {
+    "postToolUse": [
+      {
+        "type": "command",
+        "matcher": "edit|create|write|str_replace_editor",
+        "bash": ".github/hooks/lint.sh",
+        "timeoutSec": 30
+      }
+    ]
+  }
+}
