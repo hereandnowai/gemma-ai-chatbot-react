@@ -37,6 +37,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Test
+        run: npm test
+
       - name: Build
         # No secret here on purpose — this proves the app compiles without
         # depending on the key. The real, key-bearing build happens in `deploy`.

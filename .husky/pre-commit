@@ -1,0 +1,4 @@
+# Lint only what is staged, then run the full unit suite.
+# Bypass in an emergency with: git commit --no-verify
+npx lint-staged
+npm test
