@@ -8,11 +8,27 @@ export const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 const SYSTEM_PROMPT =
   "You are a friendly, concise assistant. Answer clearly and keep replies short unless asked for detail.";
 
-function toContents(messages) {
+export function toContents(messages) {
   return messages.map((m, i) => ({
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: i === 0 ? `${SYSTEM_PROMPT}\n\n${m.content}` : m.content }],
   }));
+}
+
+/**
+ * Pulls the answer text out of one streamed SSE payload.
+ *
+ * This model streams its reasoning as parts flagged `thought: true`. Those are
+ * internal scratchpad — rendering them dumps the model's entire monologue into
+ * the chat bubble, so only unflagged parts count as the answer.
+ */
+export function extractAnswerText(json) {
+  return (
+    json?.candidates?.[0]?.content?.parts
+      ?.filter((p) => !p.thought)
+      .map((p) => p.text ?? "")
+      .join("") ?? ""
+  );
 }
 
 /**
@@ -71,13 +87,7 @@ export async function streamChat(messages, onChunk, signal) {
       const payload = line.slice(5).trim();
       if (!payload || payload === "[DONE]") continue;
       try {
-        const json = JSON.parse(payload);
-        // This model streams its reasoning as parts flagged `thought: true`.
-        // Those are internal scratchpad — only the unflagged parts are the answer.
-        const text = json.candidates?.[0]?.content?.parts
-          ?.filter((p) => !p.thought)
-          .map((p) => p.text ?? "")
-          .join("");
+        const text = extractAnswerText(JSON.parse(payload));
         if (text) onChunk(text);
       } catch {
         /* ignore a malformed keep-alive event */

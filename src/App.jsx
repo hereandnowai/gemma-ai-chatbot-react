@@ -1,20 +1,42 @@
 import { useEffect, useRef, useState } from "react";
-import { streamChat, MODEL, API_KEY } from "./lib/gemini";
+import { streamChat, API_KEY } from "./lib/gemini";
+import {
+  loadBranding,
+  applyBrandColors,
+  applyFavicon,
+  FALLBACK_BRAND,
+} from "./lib/branding";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
 import Message from "./components/Message";
+import EmptyState from "./components/EmptyState";
 import Composer from "./components/Composer";
 import "./App.css";
 
-const GREETING = {
-  role: "assistant",
-  content: "Hi! I'm running on Google AI Studio. Ask me anything.",
-};
-
 export default function App() {
-  const [messages, setMessages] = useState([GREETING]);
+  const [brand, setBrand] = useState(FALLBACK_BRAND);
+  const [messages, setMessages] = useState([]);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [error, setError] = useState(API_KEY ? "" : "Missing VITE_GEMINI_API_KEY — see the README.");
+  const [error, setError] = useState(
+    API_KEY ? "" : "Missing VITE_GEMINI_API_KEY — see the README."
+  );
   const abortRef = useRef(null);
   const scrollRef = useRef(null);
+
+  // Branding drives colours and the favicon, so apply it as soon as it lands.
+  useEffect(() => {
+    let cancelled = false;
+    loadBranding().then((b) => {
+      if (cancelled) return;
+      setBrand(b);
+      applyBrandColors(b.colors);
+      applyFavicon(b.logo?.favicon);
+      if (b.organizationName) document.title = `${b.organizationName} — Chatbot`;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Keep the newest message in view as it streams in.
   useEffect(() => {
@@ -23,8 +45,8 @@ export default function App() {
   }, [messages]);
 
   async function send(text) {
-    const history = [...messages.slice(1), { role: "user", content: text }];
-    setMessages([messages[0], ...history, { role: "assistant", content: "" }]);
+    const history = [...messages, { role: "user", content: text }];
+    setMessages([...history, { role: "assistant", content: "" }]);
     setError("");
     setIsStreaming(true);
 
@@ -66,38 +88,36 @@ export default function App() {
 
   function reset() {
     stop();
-    setMessages([GREETING]);
+    setMessages([]);
     setError("");
   }
 
   return (
     <div className="app">
-      <header className="header">
-        <div className="brand">
-          <span className="dot" />
-          <h1>Caramel AI</h1>
-        </div>
-        <div className="header-right">
-          <code className="model">{MODEL}</code>
-          <button className="ghost" onClick={reset} disabled={messages.length === 1}>
-            New chat
-          </button>
-        </div>
-      </header>
+      <Header
+        brand={brand}
+        onReset={reset}
+        canReset={messages.length > 0 && !isStreaming}
+      />
 
       <main className="thread" ref={scrollRef}>
+        {messages.length === 0 && !error && <EmptyState brand={brand} />}
+
         {messages.map((m, i) => (
           <Message
             key={i}
             role={m.role}
             content={m.content}
+            avatar={brand.chatbot?.avatar}
             pending={isStreaming && i === messages.length - 1 && !m.content}
           />
         ))}
+
         {error && <div className="error">{error}</div>}
       </main>
 
       <Composer onSend={send} onStop={stop} isStreaming={isStreaming} />
+      <Footer brand={brand} />
     </div>
   );
 }
