@@ -75,7 +75,7 @@ export default function App() {
       <header className="header">
         <div className="brand">
           <span className="dot" />
-          <h1>AI Chatbot</h1>
+          <h1>Caramel AI</h1>
         </div>
         <div className="header-right">
           <code className="model">{MODEL}</code>
