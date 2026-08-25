@@ -83,14 +83,49 @@ the entire scratchpad into the chat bubble.
 tokens too, so it's set to 4096; a smaller cap gets spent on thoughts and
 truncates the answer.
 
+## 🚀 Deployment
+
+Pushes to `main` trigger [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml):
+
+```
+push/PR → ci (lint + build)
+             └── main only → build-site (inject key, set base path) → deploy → Pages
+```
+
+Live at **https://hereandnowai.github.io/gemma-ai-chatbot-react/**
+
+Pull requests run the `ci` job only — they lint and build, but never deploy and
+never touch the key.
+
+| GitHub setting | Name | Value |
+| --- | --- | --- |
+| Secret | `VITE_GEMINI_API_KEY` | your Google AI Studio key |
+| Variable | `VITE_GEMINI_MODEL` | `gemma-4-31b-it` |
+
+Set under **Settings → Secrets and variables → Actions**.
+
 ## 🔒 Security
 
-The API key ships in the browser bundle, so **anyone who opens a deployed site
-can read it**. That is acceptable for a local prototype and unacceptable for
-anything public. For production, move the `streamChat` call behind a small
-server that holds the key.
+> ### ⚠️ The deployed key is publicly readable
+>
+> Vite inlines `VITE_GEMINI_API_KEY` into the JavaScript bundle **at build
+> time**. Storing it as a GitHub secret keeps it out of the repository and out
+> of Actions logs — but not out of the shipped site. Any visitor can find it:
+>
+> ```
+> DevTools → Sources → assets/index-*.js → search "AIza"
+> ```
+>
+> **Therefore: use a dedicated, disposable key for this deployment.** Never the
+> key you use locally or anywhere else. Rotate it if usage looks wrong, and
+> watch quota at https://aistudio.google.com/apikey.
+>
+> **To remove this exposure entirely**, the `streamChat` call in
+> `src/lib/gemini.js` has to move behind a server that holds the key — a
+> Cloudflare Worker or a Vercel function is about 40 lines. The browser then
+> calls your endpoint, and the key never leaves the server.
 
-`.env` is gitignored. Never commit it.
+`.env` is gitignored and must never be committed.
 
 ## 📄 License
 

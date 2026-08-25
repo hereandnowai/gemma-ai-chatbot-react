@@ -1,0 +1,101 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Allow the deploy job to publish to GitHub Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deploys at once; let a newer push cancel a queued one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  # ---------- CI: runs on every push AND every pull request ----------
+  ci:
+    name: Lint & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        # No secret here on purpose — this proves the app compiles without
+        # depending on the key. The real, key-bearing build happens in `deploy`.
+        run: npm run build
+
+  # ---------- CD: main branch only ----------
+  build-site:
+    name: Build for Pages
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/configure-pages@v5
+        id: pages
+
+      - name: Verify the key secret exists
+        # A deploy with no key produces a site that looks fine and fails on the
+        # first message. Catch it before building, not after.
+        # Read via env, never interpolated into the shell command itself.
+        env:
+          KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::Secret VITE_GEMINI_API_KEY is not set. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          echo "Key secret is present (${#KEY} characters)."
+
+      - name: Build
+        env:
+          # WARNING: Vite inlines this into the JS bundle at build time. It is
+          # readable by anyone who visits the deployed site. Use a dedicated,
+          # disposable key here — never a key you rely on elsewhere.
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_GEMINI_MODEL: ${{ vars.VITE_GEMINI_MODEL }}
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy to Pages
+    needs: build-site
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
